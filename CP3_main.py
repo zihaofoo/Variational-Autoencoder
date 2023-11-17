@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchsummary import summary
 from CP3_sub import *
+from hyperopt import hp, tpe, Trials, fmin
 
 ## Loading input data
 topologies = np.load("topologies_train.npy")
@@ -50,7 +51,7 @@ summary(model, input_size=(input_channels, image_size[0], image_size[1]))
 
 # Training loop
 for epoch in range(1, num_epochs + 1):
-    train(epoch, data_in_tensor, data_out_tensor)
+    train(epoch, model, optimizer, data_in_tensor, data_out_tensor, batch_size)
 
 originals = np.random.choice(np.arange(len(masked_topologies)), size=5, replace=False) #Select 5 random indices
 reconstructions = reconstruct_from_vae(model, masked_topologies[originals], device) #Reconstruct

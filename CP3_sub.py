@@ -127,7 +127,7 @@ def loss_function(recon_x, x_out, mu, logvar):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) #KL Divergence loss
     return BCE + KLD
 
-def train(epoch, data_in_tensor, data_out_tensor): #Train function for one epoch of training
+def train(epoch, model, optimizer, data_in_tensor, data_out_tensor, batch_size): #Train function for one epoch of training
     model.train()
     train_loss = 0
     num_batches = len(data_in_tensor) // batch_size
