@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchsummary import summary
+import pdb
 
 class VAE(nn.Module): #Create VAE class inheriting from pytorch nn Module class
     def __init__(self, input_channels, hidden_size, num_layers, latent_dim, image_size, kernel_size, stride):
@@ -125,7 +126,8 @@ def loss_function(recon_x, x_out, mu, logvar):
     # VAE loss is a sum of KL Divergence regularizing the latent space and reconstruction loss
     BCE = nn.functional.binary_cross_entropy(recon_x, x_out, reduction='sum') # Reconstruction loss from Binary Cross Entropy
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) #KL Divergence loss
-    return BCE + KLD
+    VFE = error_volume_fraction(recon_x, x_out)
+    return BCE + KLD + VFE
 
 def train(epoch, model, optimizer, data_in_tensor, data_out_tensor, batch_size): #Train function for one epoch of training
     model.train()
@@ -182,3 +184,13 @@ def evaluate_score(masked_topologies, original_topologies, reconstructed_topolog
     accuracy_fractions = np.sum(correct_in_mask, axis=(1,2))/np.sum(masks, axis=(1,2)) #(correct & mask)/#(mask) for each topology individually
     average_accuracy_fraction = np.mean(accuracy_fractions) #Average of these ratios across test set
     return average_accuracy_fraction
+
+def error_volume_fraction(recon_x, x_out):
+    """Returns the volume fraction error between the reconstructed and the test grid."""
+    batch_size, _, n1, n2 = recon_x.shape
+    vol_frac = 0
+    for i1 in range(batch_size):
+        recon_x_layer, x_out_layer = recon_x[i1, 0, ...], x_out[i1, 0, ...]
+        vf_recon, vf_x_out = torch.sum(recon_x_layer) / (n1 * n2), torch.sum(x_out_layer) / (n1 * n2)
+        vol_frac += torch.abs((vf_recon - vf_x_out) / vf_x_out)
+    return vol_frac

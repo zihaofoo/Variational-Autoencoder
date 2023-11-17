@@ -42,7 +42,7 @@ hidden_size = 64
 num_layers = 3
 kernel_size = 3
 stride = 2
-num_epochs = 20
+num_epochs = 10
 batch_size = 64
 
 model = VAE(input_channels, hidden_size, num_layers, latent_dim, image_size, kernel_size, stride).to(device)
