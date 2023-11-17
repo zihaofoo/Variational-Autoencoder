@@ -7,6 +7,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torchsummary import summary
 import pdb
+from hyperopt import STATUS_OK
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 class VAE(nn.Module): #Create VAE class inheriting from pytorch nn Module class
     def __init__(self, input_channels, hidden_size, num_layers, latent_dim, image_size, kernel_size, stride):
@@ -194,3 +197,45 @@ def error_volume_fraction(recon_x, x_out):
         vf_recon, vf_x_out = torch.sum(recon_x_layer) / (n1 * n2), torch.sum(x_out_layer) / (n1 * n2)
         vol_frac += torch.abs((vf_recon - vf_x_out) / vf_x_out)
     return vol_frac
+    
+def split_data(in_tensor, out_tensor, train_ratio = 0.8):
+    total_samples = in_tensor.size(0)
+    train_size = int(total_samples * train_ratio)
+    
+    # Randomly shuffling the data
+    indices = torch.randperm(total_samples).tolist()
+    
+    train_indices = indices[:train_size]
+    val_indices = indices[train_size:]
+    
+    train_in_tensor = in_tensor[train_indices]
+    train_out_tensor = out_tensor[train_indices]
+    val_in_tensor = in_tensor[val_indices]
+    val_out_tensor = out_tensor[val_indices]
+
+    return train_in_tensor, train_out_tensor, val_in_tensor, val_out_tensor
+
+
+def objective(params, train_in_tensor, train_out_tensor):
+    # Initialize the VAE model with hyperparameters
+    input_channels = 1
+    image_size = (64, 64)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #Check if gpu/tpu is available
+
+    model = VAE(input_channels, params['hidden_size'], params['num_layers'], 
+                params['latent_dim'], image_size, params['kernel_size'], 
+                params['stride']).to(device)
+
+    optimizer = optim.Adam(model.parameters(), lr=params['lr'])
+    
+    # Training loop (assumed validation set is available)
+    for epoch in range(params['num_epochs']):
+        train(epoch, model, optimizer, train_in_tensor, train_out_tensor, params['batch_size'])
+
+    ## Testing and scoring
+    topologies_test = np.load("topologies_test.npy")
+    masked_topologies_test = np.load("masked_topologies_test.npy")
+    reconstructions_test = reconstruct_from_vae(model, masked_topologies_test, device) #Reconstruct
+    score = evaluate_score(masked_topologies_test, topologies_test, reconstructions_test)
+
+    return {'loss': score, 'status': STATUS_OK}

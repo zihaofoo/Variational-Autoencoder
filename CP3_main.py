@@ -8,6 +8,8 @@ import torch.optim as optim
 from torchsummary import summary
 from CP3_sub import *
 from hyperopt import hp, tpe, Trials, fmin
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 ## Loading input data
 topologies = np.load("topologies_train.npy")
@@ -26,7 +28,6 @@ masked_constraints = mask_constraints(constraints)
 
 ## Model initialization
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #Check if gpu/tpu is available
-
 data_in_tensor = torch.from_numpy(masked_topologies).float().to(device)
 data_out_tensor = torch.from_numpy(topologies).float().to(device)
 
