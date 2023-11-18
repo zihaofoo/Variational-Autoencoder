@@ -11,6 +11,22 @@ from hyperopt import hp, tpe, Trials, fmin
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
+# Setting a seed value
+seed_value = 42
+
+# Set the seed for NumPy
+np.random.seed(seed_value)
+
+# Set the seed for PyTorch
+torch.manual_seed(seed_value)
+
+# For PyTorch to ensure reproducibility when using CUDA
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(seed_value)
+    torch.cuda.manual_seed_all(seed_value)  # for multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 ## Loading input data
 topologies = np.load("topologies_train.npy")
 constraints = np.load("constraints_train.npy", allow_pickle=True)
@@ -38,12 +54,12 @@ data_out_tensor = data_out_tensor.unsqueeze(1)
 input_channels = 1
 image_size = (64, 64)
 
-latent_dim = 10
-hidden_size = 64
-num_layers = 3
+latent_dim = 80
+hidden_size = 256
+num_layers = 4
 kernel_size = 3
 stride = 2
-num_epochs = 10
+num_epochs = 70
 batch_size = 64
 
 model = VAE(input_channels, hidden_size, num_layers, latent_dim, image_size, kernel_size, stride).to(device)
