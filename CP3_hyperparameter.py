@@ -6,6 +6,8 @@ def objective(params):
     print(params)
     input_channels = 1
     image_size = (64, 64)
+    num_epochs = 50
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #Check if gpu/tpu is available
 
     model = VAE(input_channels, params['hidden_size'], params['num_layers'], 
@@ -15,15 +17,30 @@ def objective(params):
     optimizer = optim.Adam(model.parameters(), lr=params['lr'])
     
     # Training loop (assumed validation set is available)
-    for epoch in range(params['num_epochs']):
-        train(epoch, model, optimizer, data_in_tensor, data_out_tensor, params['batch_size'])
+    for epoch in range(num_epochs):
+        model.train()
+        train_loss = 0
+        num_batches = len(data_in_tensor) // params['batch_size']
+
+        for batch_idx in range(num_batches): #Loop over batch indices
+            start_idx = batch_idx * params['batch_size']
+            end_idx = (batch_idx + 1) * params['batch_size']
+            data_in = data_in_tensor[start_idx:end_idx] #Gather corresponding data
+            data_out = data_out_tensor[start_idx:end_idx] #Gather corresponding data
+
+            optimizer.zero_grad() #Set up optimizer
+            recon_batch, mu, logvar = model(data_in) #Call model
+            loss = loss_function(recon_batch, data_out, mu, logvar) #Call loss function
+            loss.backward() #Get gradients of loss
+            train_loss += loss.item() #Append to total loss
+            optimizer.step() #Update weights using optimizeer
 
     ## Testing and scoring
     topologies_test = np.load("topologies_test.npy")
     masked_topologies_test = np.load("masked_topologies_test.npy")
     reconstructions_test = reconstruct_from_vae(model, masked_topologies_test, device) #Reconstruct
     score = evaluate_score(masked_topologies_test, topologies_test, reconstructions_test)
-
+    print(params, score)
     return score
     # return {'loss': score, 'status': STATUS_OK}
 
@@ -68,12 +85,11 @@ data_out_tensor = data_out_tensor.unsqueeze(1)
 space = {
     'lr': hp.loguniform('lr', np.log(0.0001), np.log(0.01)),
     'latent_dim': hp.choice('latent_dim', [8, 16, 32, 64, 128, 256]),
-    'hidden_size': hp.choice('hidden_size', [32, 64, 128, 256, 512]),
-    'num_layers': hp.choice('num_layers', [2, 3, 4, 5, 6]),
-    'kernel_size': hp.choice('kernel_size', [3, 5, 7]),
+    'hidden_size': hp.choice('hidden_size', [32, 64, 128, 256]),
+    'num_layers': hp.choice('num_layers', [2, 3, 4, 5]),
+    'kernel_size': hp.choice('kernel_size', [2, 3, 4]),
     'stride': hp.choice('stride', [1, 2]),
     'batch_size': hp.choice('batch_size', [32, 64, 128, 256]),
-    'num_epochs': hp.choice('num_epochs', [20, 30, 40, 50, 60, 70, 80, 90])
 }
 
 best = fmin(fn = objective,
