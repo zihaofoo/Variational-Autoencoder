@@ -1,6 +1,32 @@
 from CP3_sub import *
 from hyperopt import hp, fmin, tpe, Trials
 
+def objective(params):
+    # Initialize the VAE model with hyperparameters
+    print(params)
+    input_channels = 1
+    image_size = (64, 64)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #Check if gpu/tpu is available
+
+    model = VAE(input_channels, params['hidden_size'], params['num_layers'], 
+                params['latent_dim'], image_size, params['kernel_size'], 
+                params['stride']).to(device)
+
+    optimizer = optim.Adam(model.parameters(), lr=params['lr'])
+    
+    # Training loop (assumed validation set is available)
+    for epoch in range(params['num_epochs']):
+        train(epoch, model, optimizer, data_in_tensor, data_out_tensor, params['batch_size'])
+
+    ## Testing and scoring
+    topologies_test = np.load("topologies_test.npy")
+    masked_topologies_test = np.load("masked_topologies_test.npy")
+    reconstructions_test = reconstruct_from_vae(model, masked_topologies_test, device) #Reconstruct
+    score = evaluate_score(masked_topologies_test, topologies_test, reconstructions_test)
+
+    return score
+    # return {'loss': score, 'status': STATUS_OK}
+
 # Setting a seed value
 seed_value = 42
 
@@ -50,8 +76,7 @@ space = {
     'num_epochs': hp.choice('num_epochs', [20, 30, 40, 50, 60, 70, 80, 90])
 }
 
-obj_func = lambda params: objective(params, data_in_tensor, data_out_tensor)
-best = fmin(fn = obj_func,
+best = fmin(fn = objective,
             space = space,
             algo = tpe.suggest,
             max_evals = 50,  # You can adjust this based on computational resources
