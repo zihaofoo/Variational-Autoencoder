@@ -54,7 +54,7 @@ data_out_tensor = data_out_tensor.unsqueeze(1)
 input_channels = 1
 image_size = (64, 64)
 
-latent_dim = 80
+latent_dim = 100
 hidden_size = 256
 num_layers = 4
 kernel_size = 3
